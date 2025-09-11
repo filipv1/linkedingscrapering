@@ -1,0 +1,22 @@
+# Core dependencies for LinkedIn and CKAIT scrapers
+selenium==4.25.0
+pandas==2.2.3
+openpyxl==3.1.5
+
+# Optional but recommended for better performance
+requests==2.32.3
+urllib3==2.2.3
+certifi==2024.8.30
+
+# For parallel processing (used in phone extractors)
+# These are typically included with Python 3.7+ but listed for clarity
+# concurrent.futures is built-in
+# threading is built-in
+# queue is built-in
+
+# Chrome WebDriver management (optional - can install manually)
+# webdriver-manager==4.0.2
+
+# Note: Chrome or Chromium browser must be installed separately
+# Note: ChromeDriver must match your Chrome version
+# Download from: https://chromedriver.chromium.org/

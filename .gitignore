@@ -1,0 +1,100 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Project specific - data files
+*.csv
+*.xlsx
+*.xls
+*.json
+
+# Logs
+*.log
+scraper_production.log
+
+# State files
+scraper_state.json
+checkpoint_*.xlsx
+checkpoint_*.csv
+
+# Output files
+merk_linkedin_results_*.xlsx
+merk_linkedin_results_*.csv
+merk_companies_*.csv
+ckait_*.csv
+ckait_*.xlsx
+test_results.*
+temp_*.csv
+
+# Sensitive data
+firmy.csv
+Stavbyvedoucí_longlist_v1.xlsx
+longlist_stavbyvedoucí_all.xlsx
+
+# Keep example files
+!example_input.csv
+!requirements.txt
