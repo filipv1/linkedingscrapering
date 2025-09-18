@@ -541,27 +541,60 @@ class ProductionLinkedInScraper:
 
                     # Try to find position in the text
                     lines = card_text.split('\n')
+
+                    # Find the line with the name and get the job title (usually follows the name)
+                    name_found = False
                     for i, line in enumerate(lines):
                         line_clean = line.strip()
-                        # Position is usually after the name
-                        if line_clean == name and i + 1 < len(lines):
-                            next_line = lines[i + 1].strip()
-                            if next_line and not next_line.startswith('Člen') and len(next_line) > 5:
-                                position = next_line
-                                break
 
-                    # If no position found, look for any job-title-like text
+                        # First find the name
+                        if line_clean == name:
+                            name_found = True
+                            # Look at the next few lines for the position
+                            for j in range(i + 1, min(i + 4, len(lines))):
+                                potential_position = lines[j].strip()
+                                # Skip connection degree, member info, and button text
+                                if (potential_position and
+                                    not potential_position.startswith('Člen') and
+                                    not potential_position.startswith('Spojení') and
+                                    not potential_position.startswith('Spojit') and
+                                    not 'stupně' in potential_position and
+                                    not 'vzdálenější' in potential_position and
+                                    len(potential_position) > 5 and
+                                    len(potential_position) < 150):
+                                    position = potential_position
+                                    break
+                            break
+
+                    # Alternative: Try to find position-like text using CSS selectors
                     if not position:
-                        for line in lines:
-                            line_clean = line.strip()
-                            if (line_clean and
-                                line_clean != name and
-                                not line_clean.startswith('Člen') and
-                                not line_clean.startswith('Spojit') and
-                                len(line_clean) > 5 and
-                                len(line_clean) < 100):
-                                position = line_clean
-                                break
+                        try:
+                            # Look for specific position/title elements
+                            position_selectors = [
+                                ".t-14.t-normal.t-black--light",
+                                ".t-14.t-normal",
+                                ".t-12.t-normal",
+                                "div[class*='subtitle']",
+                                "span[class*='subtitle']",
+                                ".entity-result__primary-subtitle",
+                                ".org-people-profile-card__profile-title",
+                                ".artdeco-entity-lockup__subtitle"
+                            ]
+                            for selector in position_selectors:
+                                try:
+                                    pos_elem = parent_card.find_element(By.CSS_SELECTOR, selector)
+                                    potential_pos = pos_elem.text.strip()
+                                    if (potential_pos and
+                                        not 'Spojení' in potential_pos and
+                                        not 'stupně' in potential_pos and
+                                        not 'Člen' in potential_pos and
+                                        len(potential_pos) > 5):
+                                        position = potential_pos
+                                        break
+                                except:
+                                    continue
+                        except:
+                            pass
 
                     # Save everyone with a name and profile link
                     if name and url:
