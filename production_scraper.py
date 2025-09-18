@@ -359,6 +359,235 @@ class ProductionLinkedInScraper:
                 'linkedin_url': 'nenalezeno'
             })
     
+    def get_all_people_from_company(self, company_url, company_name):
+        """Get ALL people from company without filtering - production-safe approach"""
+        try:
+            self.logger.info(f"Getting ALL employees from: {company_name}")
+            print(f"Getting ALL employees from: {company_name.encode('ascii', 'ignore').decode('ascii')}")
+
+            # Navigate to company page
+            self.driver.get(company_url)
+            self.production_rate_limit(10, 15)
+
+            # Click on "Lidé" tab
+            people_tab = None
+            try:
+                people_tab = self.wait.until(EC.element_to_be_clickable(
+                    (By.CSS_SELECTOR, "a.org-page-navigation__item-anchor[href*='/people/']")
+                ))
+                self.logger.info("Found 'Lidé' tab")
+            except:
+                # Fallback: find all navigation links
+                nav_links = self.driver.find_elements(By.CSS_SELECTOR, "a.org-page-navigation__item-anchor")
+                for link in nav_links:
+                    if "Lidé" in link.text or "People" in link.text:
+                        people_tab = link
+                        break
+
+            if not people_tab:
+                raise TimeoutException("Cannot find 'Lidé' tab")
+
+            people_tab.click()
+            self.production_rate_limit(8, 12)
+
+            # NO SEARCH - just wait for all employees to load
+            print("Loading ALL employees without filtering...")
+            self.logger.info("Loading all employees without search filter")
+            time.sleep(5)  # Wait for initial load
+
+            # Load all pages by clicking "Show more"
+            print("Loading all pages...")
+            self.logger.info("Starting pagination for all employees")
+
+            max_clicks = 20  # Allow more clicks for all employees
+            clicks_made = 0
+
+            while clicks_made < max_clicks:
+                self.logger.info(f"Looking for 'Show more' button (click {clicks_made + 1})")
+
+                if clicks_made > 0:
+                    self.human_like_behavior()
+
+                show_more_found = False
+                try:
+                    show_more_btn = self.driver.find_element(By.CSS_SELECTOR, ".scaffold-finite-scroll__load-button")
+
+                    if show_more_btn.is_enabled() and show_more_btn.is_displayed():
+                        self.logger.info("Found 'Show more' button - clicking")
+
+                        # Scroll to button
+                        self.driver.execute_script("arguments[0].scrollIntoView(true);", show_more_btn)
+                        time.sleep(random.uniform(1, 2))
+                        show_more_btn.click()
+
+                        # Conservative wait for content to load
+                        self.production_rate_limit(10, 15)
+
+                        show_more_found = True
+                        clicks_made += 1
+                except:
+                    pass
+
+                if not show_more_found:
+                    self.logger.info(f"No more 'Show more' button found after {clicks_made} clicks")
+                    break
+
+            # Extract ALL people from fully loaded page
+            print("Extracting ALL employees from loaded page...")
+            self.logger.info("Starting employee extraction")
+
+            people_found = self.extract_all_people_from_page()
+
+            # Remove duplicates
+            unique_people = []
+            seen_urls = set()
+            for person in people_found:
+                if person['url'] not in seen_urls:
+                    unique_people.append(person)
+                    seen_urls.add(person['url'])
+
+            people_found = unique_people
+            self.logger.info(f"After deduplication: {len(people_found)} unique employees")
+
+            if people_found:
+                self.logger.info(f"Found {len(people_found)} employees")
+                print(f"Found {len(people_found)} employees at {company_name.encode('ascii', 'ignore').decode('ascii')}")
+                for person in people_found:
+                    self.results.append({
+                        'company': company_name,
+                        'name': person['name'],
+                        'position': person['position'],
+                        'linkedin_url': person['url']
+                    })
+            else:
+                self.logger.warning("No employees found")
+                print(f"No employees found at {company_name.encode('ascii', 'ignore').decode('ascii')}")
+                self.results.append({
+                    'company': company_name,
+                    'name': 'nenalezeno',
+                    'position': 'nenalezeno',
+                    'linkedin_url': 'nenalezeno'
+                })
+
+        except Exception as e:
+            self.logger.error(f"Error getting employees from {company_name}: {e}")
+            print(f"Cannot access people page for: {company_name.encode('ascii', 'ignore').decode('ascii')}")
+            self.results.append({
+                'company': company_name,
+                'name': 'nenalezeno',
+                'position': 'nenalezeno',
+                'linkedin_url': 'nenalezeno'
+            })
+
+    def extract_all_people_from_page(self):
+        """Extract ALL people data without filtering - production safe"""
+        people = []
+
+        try:
+            # Wait for content to fully load
+            time.sleep(5)
+
+            # Try scrolling to ensure all content is loaded
+            self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            time.sleep(3)
+
+            # Find all LinkedIn profile links
+            profile_links = self.driver.find_elements(By.CSS_SELECTOR, "a[href*='/in/']")
+            self.logger.info(f"Found {len(profile_links)} profile links")
+
+            # Filter for actual people profiles
+            people_profiles = []
+            for link in profile_links:
+                href = link.get_attribute('href')
+                # Check if it's a direct profile link (not a post or activity)
+                if '/in/' in href and '/posts/' not in href and '/activity/' not in href:
+                    people_profiles.append(link)
+
+            self.logger.info(f"Filtered to {len(people_profiles)} actual people profiles")
+
+            # Limit extraction for production safety
+            max_people = 150  # Increased limit for all employees
+            for profile_link in people_profiles[:max_people]:
+                try:
+                    # Get LinkedIn URL
+                    url = profile_link.get_attribute('href')
+
+                    # Find the person's card/container
+                    parent_card = profile_link
+                    for _ in range(5):  # Go up max 5 levels
+                        try:
+                            parent_card = parent_card.find_element(By.XPATH, "./..")
+                            if 'card' in parent_card.get_attribute('class').lower():
+                                break
+                        except:
+                            break
+
+                    # Extract name
+                    name = ""
+                    name_selectors = [".lt-line-clamp", ".t-16", ".t-bold", "span[aria-hidden='true']"]
+                    for selector in name_selectors:
+                        try:
+                            name_elem = parent_card.find_element(By.CSS_SELECTOR, selector)
+                            potential_name = name_elem.text.strip()
+                            if potential_name and 2 < len(potential_name) < 60 and not potential_name.startswith('Člen'):
+                                name = potential_name
+                                break
+                        except:
+                            continue
+
+                    # Extract position
+                    position = ""
+                    card_text = parent_card.text
+
+                    # Try to find position in the text
+                    lines = card_text.split('\n')
+                    for i, line in enumerate(lines):
+                        line_clean = line.strip()
+                        # Position is usually after the name
+                        if line_clean == name and i + 1 < len(lines):
+                            next_line = lines[i + 1].strip()
+                            if next_line and not next_line.startswith('Člen') and len(next_line) > 5:
+                                position = next_line
+                                break
+
+                    # If no position found, look for any job-title-like text
+                    if not position:
+                        for line in lines:
+                            line_clean = line.strip()
+                            if (line_clean and
+                                line_clean != name and
+                                not line_clean.startswith('Člen') and
+                                not line_clean.startswith('Spojit') and
+                                len(line_clean) > 5 and
+                                len(line_clean) < 100):
+                                position = line_clean
+                                break
+
+                    # Save everyone with a name and profile link
+                    if name and url:
+                        if not position:
+                            position = "Neuvedeno"
+
+                        people.append({
+                            'name': name,
+                            'position': position,
+                            'url': url
+                        })
+                        self.logger.info(f"Added: {name} - {position[:50]}")
+
+                except Exception as e:
+                    self.logger.warning(f"Error processing profile: {e}")
+                    continue
+
+            self.logger.info(f"Successfully extracted {len(people)} employees")
+            print(f"Successfully extracted {len(people)} employees")
+
+        except Exception as e:
+            self.logger.error(f"Error extracting people: {e}")
+            print(f"Error extracting people: {e}")
+
+        return people
+
     def extract_people_from_page(self):
         """Extract people with production safety"""
         people = []

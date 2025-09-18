@@ -25,9 +25,9 @@ class ResilientLinkedInScraper:
         
         # Output files
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        self.output_excel = f'merk_linkedin_results_{timestamp}.xlsx'
-        self.output_csv = f'merk_linkedin_results_{timestamp}.csv'
-        self.checkpoint_file = f'checkpoint_{timestamp}.xlsx'
+        self.output_excel = f'all_employees_{timestamp}.xlsx'
+        self.output_csv = f'all_employees_{timestamp}.csv'
+        self.checkpoint_file = f'checkpoint_all_employees_{timestamp}.xlsx'
         
         # Load previous state if resuming
         if self.resume:
@@ -139,16 +139,16 @@ class ResilientLinkedInScraper:
             return False
     
     def process_single_company(self, company_name):
-        """Process a single company - using the original working method"""
+        """Process a single company - load all employees without filtering"""
         try:
             print(f"Processing: {company_name}")
-            
+
             # Search for company (original method)
             company_url, actual_name = self.scraper.search_company(company_name)
-            
+
             if company_url and actual_name:
-                # Get people from company (original method)
-                self.scraper.get_people_from_company(company_url, actual_name)
+                # Get all people from company (no filtering)
+                self.scraper.get_all_people_from_company(company_url, actual_name)
             else:
                 # Company not found - add fallback entry
                 self.scraper.results.append({
@@ -158,13 +158,13 @@ class ResilientLinkedInScraper:
                     'linkedin_url': 'nenalezeno'
                 })
                 print(f"  Company not found")
-            
+
             # Rate limiting (original method)
             self.scraper.rate_limit(3, 6)
-            
+
             self.processed_count += 1
             return True
-            
+
         except Exception as e:
             print(f"[ERROR] Failed to process {company_name}: {e}")
             raise  # Re-raise to handle in main loop
@@ -172,7 +172,7 @@ class ResilientLinkedInScraper:
     def run(self):
         """Main execution loop with resilience"""
         print("=" * 60)
-        print("RESILIENT LINKEDIN SCRAPER FOR MERK COMPANIES")
+        print("RESILIENT LINKEDIN SCRAPER - ALL EMPLOYEES")
         print("=" * 60)
         print(f"Input file: {self.input_file}")
         print(f"Autosave every: {self.autosave_interval} companies")
